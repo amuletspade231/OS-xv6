@@ -14,16 +14,63 @@ sys_fork(void)
 }
 
 int
-sys_exit(int status) //change from lab
+sys_exit(void) 
 {
-  exit(status);
+  exit();
   return 0;  // not reached
 }
 
 int
-sys_wait(int *status)
+sys_exitS(void) //change from lab
 {
-  return wait(status);
+    int status; 
+    
+    if(argint(0, &status) < 0) 
+	return -1;
+
+    exitS(status);
+    return 0;    
+}
+
+int
+sys_wait(void)
+{
+  return wait();
+}
+
+int
+sys_waitS(void)
+{
+    int *status;
+  
+    // First arg off stack
+    if(argptr(0, (void*)&status, sizeof(*status)) < 0 )
+	return -1; 
+    return waitS(status);
+}
+
+int
+sys_waitpid(void)
+{
+    int pid; 
+    
+    // First arg off stack
+    if(argint(0, &pid) < 0) 
+	return -1;
+
+    int *status;
+  
+    // Second arg off stack
+    if(argptr(1, (void*)&status, sizeof(*status)) < 0 )
+	return -1;
+
+    int options; 
+    
+    // Third arg off stack
+    if(argint(2, &options) < 0) 
+	return -1; 
+
+    return waitpid(pid, status, options);
 }
 
 int

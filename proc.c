@@ -266,9 +266,10 @@ exit(void)
   sched();
   panic("zombie exit");
 }
+
 //exit with new signature
 void
-exit(int status)
+exitS(int status)
 {
   struct proc *curproc = myproc();
   struct proc *p;
@@ -306,7 +307,7 @@ exit(int status)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
-  curproc->exit_status = status;
+  curproc->exit_status = status; //store the exit status into the state
   sched();
   panic("zombie exit");
 }
@@ -354,9 +355,12 @@ wait(void)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
   }
 }
-// wait with new signature
+
+// Wait for a child process to exit and return its pid.
+// Return -1 if this process has no children.
+// Stores exit status of exited child
 int
-wait(int *status)
+waitS(int *status)
 {
   struct proc *p;
   int havekids, pid;
@@ -382,9 +386,9 @@ wait(int *status)
         p->killed = 0;
         p->state = UNUSED;
         release(&ptable.lock);
-        if (status != NULL) {
-			*status = p->exit_status;
-		}
+        if (status != 0) {
+	    *status = p->exit_status;
+	}
         return pid;
       }
     }
@@ -396,6 +400,53 @@ wait(int *status)
     }
 
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(curproc, &ptable.lock);  //DOC: wait-sleep
+  }
+}
+
+// waits for the process with the given pid to exit
+// returns -1 if process doesn't exist or an unexpected error occurs
+int
+waitpid(int pid, int *status, int options)
+{
+  struct proc *p;
+  int found;
+  struct proc *curproc = myproc();
+  
+  acquire(&ptable.lock);
+  for(;;){
+    found = 0;
+    // Scan through table looking for exited process.
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->pid != pid)
+        continue;
+      found = 1;
+      if(p->state == ZOMBIE){
+        // Found it.
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        if (status != 0) {
+	    *status = p->exit_status;
+	}
+        return pid;
+      }
+    }
+
+    // No point waiting if current process is already killed.
+    if(!found || curproc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for given process to exit.  (See wakeup1 call in proc_exit.)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
   }
 }
