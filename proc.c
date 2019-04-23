@@ -437,10 +437,14 @@ waitpid(int pid, int *status, int options)
 	    *status = p->exit_status;
 	}
         return pid;
+      } else if (options == 1){
+        release(&ptable.lock);
+	return 0;
       }
     }
 
     // No point waiting if current process is already killed.
+    //if (options == 1 && !found) { return 0; }
     if(!found || curproc->killed){
       release(&ptable.lock);
       return -1;
