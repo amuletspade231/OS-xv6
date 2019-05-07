@@ -88,6 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->priority = 10; //Lab 2 - set default priority
 
   release(&ptable.lock);
 
@@ -455,6 +456,18 @@ waitpid(int pid, int *status, int options)
   }
 }
 
+void
+setpriority(int priority, uint* prev) {
+    struct proc *p = myproc();
+    
+    if(prev) { *prev = p->priority; } //set previous priority
+    
+    if (priority < 0) { p->priority = 0; }
+    else if (priority > 31) { p->priority = 31; }
+    else
+    {	p->priority = priority;    }
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -466,7 +479,7 @@ waitpid(int pid, int *status, int options)
 void
 scheduler(void)
 {
-  struct proc *p;
+  struct proc *p, *q;
   struct cpu *c = mycpu();
   c->proc = 0;
   
@@ -476,18 +489,41 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
+    for(q = ptable.proc; q < &ptable.proc[NPROC]; q++){
+      if(q->state != RUNNABLE)
+        continue;
+
+    struct proc *run = &ptable.proc[0];
+
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
+      if(run == 0 || p->priority < run->priority) //choose process with highest priority
+	run = p;
+    }
+
+    if(!run) { continue; }
+
+    if (run->priority < 31) //lower priority of chosen process to no more than 31
+    	run->priority += 1;
+
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){ //raise priority of every other runnable process to no more than 0
+      if(p->state != RUNNABLE)
+        continue;
+      if(p != run && p->priority > 0)
+ 	p->priority -= 1;	
+    }
+
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+      c->proc = run;
+      switchuvm(run);
+      run->state = RUNNING;
 
-      swtch(&(c->scheduler), p->context);
+      swtch(&(c->scheduler), run->context);
       switchkvm();
 
       // Process is done running for now.

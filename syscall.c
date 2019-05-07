@@ -107,6 +107,7 @@ extern int sys_hello(void); //BR
 extern int sys_exitS(void);
 extern int sys_waitS(void);
 extern int sys_waitpid(void);
+extern int sys_setpriority(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -134,6 +135,7 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_hello]   sys_hello,
+[SYS_setpriority] sys_setpriority,
 };
 
 void

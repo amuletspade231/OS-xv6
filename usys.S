@@ -33,3 +33,4 @@ SYSCALL(hello) //BR
 SYSCALL(exitS)
 SYSCALL(waitS)
 SYSCALL(waitpid)
+SYSCALL(setpriority)
